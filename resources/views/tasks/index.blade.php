@@ -153,6 +153,10 @@
                         data: { _token: '{{ csrf_token() }}' },
                         success: function(data) {
                             if (data.success) {
+                                Swal.fire({
+                                    title: "Deleted successfully!", 
+                                    icon: "success"
+                                });
                                 $('#task-' + id).remove();
                             }
                         }
