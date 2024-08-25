@@ -5,6 +5,8 @@
 <head>
        <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
     <title>Simple To-Do List App</title>
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -22,6 +24,8 @@
             <input type="text" id="taskName" class="form-control" placeholder="Enter task name" aria-label="Task Name">
             <button id="addTask" class="btn btn-primary">Add Task</button>
         </div>
+                <div id="errorContainer"></div>
+
 
         <table class="table table-bordered">
             <thead class="thead-light">
@@ -74,14 +78,52 @@
     <script>
         $(document).ready(function() {
             // Add Task
+          $.ajaxSetup({
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                }
+            });
+
             $('#addTask').click(function() {
                 var name = $('#taskName').val();
-                $.post('/tasks', { name: name, _token: '{{ csrf_token() }}' }, function(data) {
-                    if (data.success) {
-                        location.reload();
+
+                // Check if task name is not empty
+                if (name.trim() === '') {
+                    alert('Task name cannot be empty');
+                    return;
+                }
+
+                $.ajax({
+                    url: '/tasks',
+                    type: 'POST',
+                    data: { name: name },
+                    success: function(data) {
+                        if (data.success) {
+                            location.reload(); 
+                        }
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) { 
+                            var errors = xhr.responseJSON.errors;
+                            displayErrors(errors);
+                        } else {
+                            alert('Error: ' + xhr.statusText);
+                        }
                     }
                 });
             });
+
+            function displayErrors(errors) {
+                var errorHtml = '<div class="alert alert-danger"><ul>';
+                $.each(errors, function(field, messages) {
+                    $.each(messages, function(index, message) {
+                        errorHtml += '<li>' + message + '</li>';
+                    });
+                });
+                errorHtml += '</ul></div>';
+
+                $('#errorContainer').html(errorHtml);
+            }
 
             // Mark as Completed
             $(document).on('change', '.taskStatus', function() {
@@ -93,7 +135,8 @@
                     data: { completed: completed ? 1 : 0, _token: '{{ csrf_token() }}' },
                     success: function(data) {
                         if (data.success) {
-                            $('#task-' + id).toggle(); 
+                            $('#task-' + id).toggle();
+                          // $('#task-' + editTaskId).find('td:eq(1)').text(newName);
 
                         }
                     }   
@@ -101,18 +144,9 @@
             });
 
             // Delete Task
-        $(document).on('click', '.deleteTask', function() {
-            var id = $(this).data('id');
-            Swal.fire({
-                title: 'Are you sure?',
-                text: 'You won\'t be able to revert this!',
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Yes, delete it!'
-            }).then((result) => {
-                if (result.isConfirmed) {
+            $(document).on('click', '.deleteTask', function() {
+                if (confirm('Are you sure to delete this task?')) {
+                    var id = $(this).data('id');
                     $.ajax({
                         url: '/tasks/' + id,
                         type: 'DELETE',
@@ -120,25 +154,11 @@
                         success: function(data) {
                             if (data.success) {
                                 $('#task-' + id).remove();
-                                Swal.fire(
-                                    'Deleted!',
-                                    'Your task has been deleted.',
-                                    'success'
-                                );
                             }
-                        },
-                        error: function() {
-                            Swal.fire(
-                                'Error!',
-                                'There was an error deleting the task.',
-                                'error'
-                            );
                         }
                     });
                 }
             });
-        });
-
 
             // Show All Tasks
             $('#showAllTasks').click(function() {
