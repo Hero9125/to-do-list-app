@@ -1,5 +1,3 @@
-<!-- resources/views/tasks/index.blade.php -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -185,6 +183,7 @@
                     });
                 });
             });
+
 
             // Edit Task
             var editTaskId;
